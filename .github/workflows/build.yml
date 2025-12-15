@@ -46,7 +46,7 @@ jobs:
           go build -ldflags="-s -w" -trimpath -o dist/gohook-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }} ./cmd/gohook
 
       - name: Upload binaries
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: gohook-${{ matrix.os }}-${{ matrix.arch }}
           path: dist/*
