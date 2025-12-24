@@ -1,10 +1,9 @@
 package main
 
 import (
-	"fmt"
-	"gohook/internal/client"
 	"gohook/internal/config"
 	"gohook/internal/server"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -13,10 +12,8 @@ import (
 func main() {
 	config.Init()
 
-	client.Init()
-
 	go server.Start()
-	fmt.Println("Server started, addr", config.Get().Address)
+	log.Println("Server started, addr", config.Get().Address)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)

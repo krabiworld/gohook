@@ -1,15 +1,16 @@
 package routes
 
-import "github.com/valyala/fasthttp"
+import (
+	"fmt"
+	"log"
+	"net/http"
+)
 
-func Health(ctx *fasthttp.RequestCtx) {
-	if !ctx.IsGet() {
-		ctx.SetStatusCode(fasthttp.StatusMethodNotAllowed)
-		ctx.Response.Header.Set(fasthttp.HeaderAllow, fasthttp.MethodGet)
-		return
+func Health(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if _, err := fmt.Fprint(w, `{"status":"ok"}`); err != nil {
+		log.Println(err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
 	}
-
-	ctx.SetStatusCode(fasthttp.StatusOK)
-	ctx.SetContentType("application/json")
-	ctx.SetBodyString(`{"status":"ok"}`)
 }

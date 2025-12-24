@@ -2,10 +2,10 @@ package parser
 
 import (
 	"encoding/json"
-	"fmt"
 	"gohook/internal/client"
 	"gohook/internal/events"
 	"gohook/internal/structs/discord"
+	"log"
 )
 
 type Event interface {
@@ -42,7 +42,7 @@ func Parse(event string, body []byte, creds discord.Credentials) {
 
 	eventResult, err := parser(body)
 	if err != nil {
-		fmt.Println("Parsing error:", err)
+		log.Println("Parsing error:", err)
 		return
 	}
 
@@ -52,6 +52,6 @@ func Parse(event string, body []byte, creds discord.Credentials) {
 
 	err = client.ExecuteWebhook(eventResult, creds)
 	if err != nil {
-		fmt.Println("Client error:", err)
+		log.Println("Client error:", err)
 	}
 }

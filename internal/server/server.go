@@ -1,27 +1,19 @@
 package server
 
 import (
-	"fmt"
 	"gohook/internal/config"
 	"gohook/internal/server/routes"
-	"os"
-
-	"github.com/valyala/fasthttp"
+	"log"
+	"net/http"
 )
 
 func Start() {
-	handler := func(ctx *fasthttp.RequestCtx) {
-		switch string(ctx.Path()) {
-		case "/health":
-			routes.Health(ctx)
-		default:
-			routes.Webhook(ctx)
-		}
-	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health", routes.Health)
+	mux.HandleFunc("POST /{id}/{token}", routes.Webhook)
 
-	err := fasthttp.ListenAndServe(config.Get().Address, handler)
+	err := http.ListenAndServe(config.Get().Address, mux)
 	if err != nil {
-		fmt.Println("Failed to start server:", err)
-		os.Exit(1)
+		log.Fatal("Failed to start server:", err.Error())
 	}
 }

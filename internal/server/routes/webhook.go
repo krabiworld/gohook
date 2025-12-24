@@ -1,18 +1,17 @@
 package routes
 
 import (
-	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"gohook/internal/config"
 	"gohook/internal/parser"
 	"gohook/internal/structs/discord"
+	"io"
+	"log"
 	"mime"
+	"net/http"
 	"strings"
-
-	"github.com/valyala/fasthttp"
 )
 
 const (
@@ -22,40 +21,42 @@ const (
 	githubUserAgentPrefix = "GitHub-Hookshot/"
 )
 
-func Webhook(ctx *fasthttp.RequestCtx) {
-	mediaType, _, err := mime.ParseMediaType(string(ctx.Request.Header.Peek(fasthttp.HeaderContentType)))
+func Webhook(w http.ResponseWriter, r *http.Request) {
+	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil || mediaType != "application/json" {
-		ctx.Response.Header.Set("Accept-Post", "application/json")
-		ctx.SetStatusCode(fasthttp.StatusUnsupportedMediaType)
+		w.Header().Set("Accept-Post", "application/json")
+		w.WriteHeader(http.StatusUnsupportedMediaType)
 		return
 	}
 
-	eventHeader := ctx.Request.Header.Peek(githubEvent)
-	if len(eventHeader) == 0 {
-		ctx.Error("Missing event", fasthttp.StatusBadRequest)
+	eventHeader := r.Header.Get(githubEvent)
+	if eventHeader == "" {
+		http.Error(w, "Missing event", http.StatusBadRequest)
 		return
 	}
 
-	userAgent := string(ctx.Request.Header.Peek("User-Agent"))
+	userAgent := r.Header.Get("User-Agent")
 	if userAgent == "" || !strings.HasPrefix(userAgent, githubUserAgentPrefix) {
-		ctx.Error("Incorrect user agent", fasthttp.StatusBadRequest)
+		http.Error(w, "Incorrect user agent", http.StatusBadRequest)
 		return
 	}
 
-	parts := strings.Split(string(ctx.Path()), "/")
-
-	if len(parts) != 3 || parts[1] == "" || parts[2] == "" {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		ctx.SetBodyString("Path must be in format /:id/:token")
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Println("Failed to read body", "err", err.Error())
+		http.Error(w, "Failed to read body", http.StatusInternalServerError)
 		return
 	}
-
-	body := ctx.PostBody()
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			log.Println("Failed to close body", "err", err.Error())
+		}
+	}()
 
 	if secret := config.Get().Secret; secret != "" {
-		sig := string(ctx.Request.Header.Peek(githubSignature))
+		sig := r.Header.Get(githubSignature)
 		if sig == "" {
-			ctx.Error("Missing signature", fasthttp.StatusUnauthorized)
+			http.Error(w, "Missing signature", http.StatusUnauthorized)
 			return
 		}
 
@@ -64,27 +65,23 @@ func Webhook(ctx *fasthttp.RequestCtx) {
 		expectedMAC := mac.Sum(nil)
 
 		if !strings.HasPrefix(sig, githubSignaturePrefix) {
-			ctx.Error("Invalid signature format", fasthttp.StatusBadRequest)
+			http.Error(w, "Invalid signature format", http.StatusBadRequest)
 			return
 		}
 
 		receivedSig, err := hex.DecodeString(sig[len(githubSignaturePrefix):])
 		if err != nil {
-			fmt.Println("Failed to decode signature:", err)
-			ctx.Error("Invalid signature hex", fasthttp.StatusBadRequest)
+			log.Println("Failed to decode signature:", err.Error())
+			http.Error(w, "Invalid signature hex", http.StatusBadRequest)
 			return
 		}
 
 		if !hmac.Equal(expectedMAC, receivedSig) {
-			ctx.Error("Signature mismatch", fasthttp.StatusUnauthorized)
+			http.Error(w, "Signature mismatch", http.StatusUnauthorized)
 			return
 		}
 	}
 
-	ctx.SetStatusCode(fasthttp.StatusNoContent)
-
-	eventCopy := string(bytes.Clone(eventHeader))
-	bodyCopy := bytes.Clone(body)
-
-	go parser.Parse(eventCopy, bodyCopy, discord.Credentials{ID: parts[1], Token: parts[2]})
+	w.WriteHeader(http.StatusNoContent)
+	go parser.Parse(eventHeader, body, discord.Credentials{ID: r.PathValue("id"), Token: r.PathValue("token")})
 }
