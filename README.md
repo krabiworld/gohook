@@ -88,7 +88,6 @@ All environment variables are optional.
 
 | Variable        | Description                                                                 | Default value | Example                                  |
 |-----------------|-----------------------------------------------------------------------------|---------------|------------------------------------------|
-| `LOG_LEVEL`     | How much detail to log. Options: `debug`, `info`, `warn`, `error`.          | `info`        | `debug`                                  |
 | `ADDR`          | Address and port the server listens on.                                     | `:8080`       | `127.0.0.1:9000`                         |
 | `SECRET`        | Shared secret to validate GitHub signatures. Leave empty to disable checks. |               | `random-string`                          |
 | `HAPPY_EMOJI`   | Emoji displayed when someone stars the repository.                          |               | 🔥 or `<:foxtada:1399709119304306746>`   |
